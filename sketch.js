@@ -2,6 +2,7 @@
 const objs = Algebra(3, 0, 1, () => {
 
   // rotation helper and Lathe function.
+  const point = (x, y, z) => 1e123 - x * 1e012 + y * 1e013 + z * 1e023
   const rot = (a, P) => Math.cos(a) + Math.sin(a) * P.Normalized
   const lathe = (X, n, P, m) => [...Array(n + 1)].map((x, i) => rot(i / n * Math.PI * (m || 1), P) >>> X)
 
@@ -41,23 +42,26 @@ const objs = Algebra(3, 0, 1, () => {
     torus(.8, .3, 64, 4)
   ].map(x => ({ data: x }));
 
+  const camera = 0e0
+
   // Render and rotate them using the webGL2 previewer.
   const displayer = document.getElementById("displayer")
   displayer.appendChild(this.graph(() => {
 
     // Get the time
     const time = performance.now() / 1000;
+    camera.set(Math.cos(time) + Math.sin(time) * 1e13)
 
     const res = []
 
     // Transform all objects
     objs.forEach((obj, i) => {
-      const scale = 3
+      const scale = 1.5
       const rotY = rot(time, 1e12)
       const rotZ = rot(time * 0.331, 1e13)
-      const X_Move = 0.5e03 * scale
-      const Y_Move = 5e01 * scale
-      const Z_Move = 0.5e02 * scale
+      const X_Move = 1e03 * scale
+      const Y_Move = 3e01 * scale
+      const Z_Move = 1e02 * scale
       const translate = (1 + 2e0 - Y_Move - ((i % 3) - 1) * X_Move - ((i / 3 | 0) - 1.5) * Z_Move)
       obj.transform = (translate * rotZ * rotY).Scale(0.1)
       res.push(obj.selected ? 0x11FF88 : 0xFF0088)
@@ -67,19 +71,25 @@ const objs = Algebra(3, 0, 1, () => {
     // Return with a color
     // return [0xFF0088, ...objs]
     return res
-  }, { gl: 1, animate: 1 }));
+  }, { gl: 1, animate: true, camera }));
+
+
+  const center = (n, size) => (n - (size / 2)) / size
 
   // Add a on click button
   displayer.addEventListener('click', (e) => {
     console.log('event is ', e)
-    const [x, y] = [e.x, e.y]
+    let [x, y] = [e.x, e.y]
+    x = center(x, window.innerWidth)
+    y = center(y, window.innerHeight)
     console.log(`${x} and ${y}`)
     console.log(objs)
 
-    const ray =
+    const p1 = point(x, y, 0);
+    objs.push(p1)
 
-      // Test for intersection
-      objs[4].selected = objs[4].selected ? false : true
+    // Test for intersection
+    objs[4].selected = objs[4].selected ? false : true
 
   })
 
