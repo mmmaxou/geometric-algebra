@@ -6,9 +6,16 @@ const objs = Algebra(3, 0, 1, () => {
 
   // scale
   const scale = 0.1
+  const BASE_CAMERA_DISTANCE = 4.5
+  let cameraDistance = 1
 
   // Degree
   const degree2radian = (deg) => (deg * (3.15149) / 360)
+
+  // Color
+  const rMult = 16 * 16 * 16 * 16
+  const gMult = 16 * 16
+  const rgb2hex = (r = 0, g = 0, b = 0) => r * rMult + g * gMult + b
 
   // rotation helper and Lathe function.
   const point = (x, y, z) => 1e123 - x * 1e012 + y * 1e013 + z * 1e023
@@ -38,11 +45,16 @@ const objs = Algebra(3, 0, 1, () => {
     cube(1),
     cube(1),
     cube(1),
-  ].map((x, i) => ({ data: x, selected: false, rot: { x: degree2radian(45), y: 0, z: 0 } }));
+  ].map((x, i) => ({
+    data: x,
+    selected: false,
+    rot: { x: degree2radian(45), y: 0, z: 0 },
+    translate: { x: 0, y: 0, z: 0 }
+  }));
 
   // Camera
   const camera = 0e0
-  let cameraRotationX = 0
+  let cameraRotation = 0
 
 
   // Render and rotate them using the webGL2 previewer.
@@ -51,22 +63,30 @@ const objs = Algebra(3, 0, 1, () => {
 
     // Get the time
     const time = performance.now() / 4000;
-    // cameraRotationX = time
+    // cameraRotation = time
     const res = []
 
     // Transform all objects
     objs.forEach((obj, i) => {
-      camera.set(Math.cos(cameraRotationX) + Math.sin(cameraRotationX) * 1e13);
+      camera.set(Math.cos(cameraRotation) + Math.sin(cameraRotation) * 1e13);
       const rotation = obj.rot || { x: 0, y: 0, z: 0 }
       const rotX = rot(rotation.x, 1e23)
       const rotY = rot(rotation.y, 1e12)
       const rotZ = rot(rotation.z, 1e13)
       const X_Move = 1e03 * scale
-      const Y_Move = 0e01 * scale
+      const Y_Move = 0e01
       const Z_Move = 1e02 * scale
-      const translate = (1 + 2e0 - Y_Move - ((i % 3) - 1) * X_Move - ((i / 3 | 0) - 1.5) * Z_Move)
+      const translate = (1 + 1e0 - 2 * Y_Move - ((i % 3)) * X_Move - ((i / 3 | 0)) * Z_Move)
       obj.transform = (translate * rotZ * rotY * rotX)
-      res.push(obj.selected ? 0x11FF88 : 0xFF0088)
+      let color
+      if (obj.color) {
+        color = obj.color
+      } else if (obj.selected) {
+        color = 0x11FF88
+      } else {
+        color = 0xFF0088
+      }
+      res.push(color)
       res.push(obj)
     });
 
@@ -76,43 +96,85 @@ const objs = Algebra(3, 0, 1, () => {
   }, { gl: 1, animate: true, camera }));
 
 
-  const center = (n, size) => (n - (size * 0.5)) * 2 / size
+  const center = (n, size) => (n - (size * 0.5)) / size
 
   // Add a on click button
   displayer.addEventListener('click', (e) => {
-    console.log('event is ', e)
-    let [x, y] = [e.x, e.y]
-    x = center(x, window.innerWidth)
-    y = center(y, window.innerHeight)
-    console.log(`${x} and ${y}`)
-    console.log(objs)
+    e.preventDefault()
 
-    const p1 = point(x, y, 0);
-    const p2 = point(x, y, -10)
-    const ray = line(p1.e012, p1.e013, p1.e023, p2.e012, p2.e013, p2.e023)
+    // Get the x and y coordinates
+    let [x, y] = [e.x, e.y]
+
+    // Map them to center
+    const ratioX = window.innerWidth / window.innerHeight
+    const ratioY = window.innerHeight / window.innerWidth
+    x = center(x, window.innerWidth) * -4
+    y = center(y, window.innerHeight) * ratioY * 4
+    const CR2 = cameraRotation * 1.9
+
+    // Plane point
+    const p1 = point(-Math.sin(CR2) * x, y, Math.cos(CR2) * x);
+    p1.color = rgb2hex(0, 0, 255)
+
+    // Camera point
+    const p2 = point(Math.cos(CR2) * BASE_CAMERA_DISTANCE, 0, Math.sin(CR2) * BASE_CAMERA_DISTANCE)
+
+    // Ray
+    const ray = p1 & p2
+
+    // Add to array
     objs.push(p1)
     objs.push(p2)
     objs.push(ray)
 
     // Test for intersection
-    objs[4].selected = objs[4].selected ? false : true
+    // objs[4].selected = objs[4].selected ? false : true
+
+    let i = 0
+    const idInterval = setInterval(() => {
+      if (i === 100) {
+        clearInterval(idInterval)
+      } else {
+        const v = 100 / i
+        p1.color = rgb2hex(
+          255 - (255 * v),
+          255 - (24 * v),
+          255 - (64 * v),
+        )
+        p2.color = rgb2hex(
+          255 - (0 * v),
+          255 - (64 * v),
+          255 - (24 * v),
+        )
+        ray.color = rgb2hex(
+          255 - (0 * v),
+          255 - (0 * v),
+          255 - (0 * v),
+        )
+        console.log(objs)
+      }
+      ++i
+    }, 100)
 
 
-    const time = performance.now() / 4000;
-    console.log('time is ', time)
-
+    return false
   })
 
   let lastX = -1
   document.body.addEventListener('mousemove', (e) => {
     if (e.shiftKey) {
+      if (lastX === -1) {
+        lastX = e.x
+        return
+      }
       const delta = -(lastX - e.x)
       lastX = e.x
-      cameraRotationX += degree2radian(delta)
+      cameraRotation += degree2radian(delta)
+    } else {
+      lastX = -1
     }
   })
 
   return objs
 
 });
-console.log(objs)
