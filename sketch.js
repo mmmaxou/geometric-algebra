@@ -1,3 +1,45 @@
+/**
+ * 
+ * Copied from https://gist.github.com/mjackson/5311256
+ * 
+ *
+ * Converts an HSL color value to RGB. Conversion formula
+ * adapted from http://en.wikipedia.org/wiki/HSL_color_space.
+ * Assumes h, s, and l are contained in the set [0, 1] and
+ * returns r, g, and b in the set [0, 255].
+ *
+ * @param   Number  h       The hue
+ * @param   Number  s       The saturation
+ * @param   Number  l       The lightness
+ * @return  Array           The RGB representation
+ */
+function hslToRgb(h, s, l) {
+  var r, g, b;
+
+  if (s == 0) {
+    r = g = b = l; // achromatic
+  } else {
+    function hue2rgb(p, q, t) {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    }
+
+    var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    var p = 2 * l - q;
+
+    r = hue2rgb(p, q, h + 1 / 3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1 / 3);
+  }
+
+  return [r * 255, g * 255, b * 255];
+}
+
+
 // Create a Clifford Algebra with 3,0,1 metric.
 const objs = Algebra(3, 0, 1, () => {
 
@@ -114,13 +156,15 @@ const objs = Algebra(3, 0, 1, () => {
 
     // Plane point
     const p1 = point(-Math.sin(CR2) * x, y, Math.cos(CR2) * x);
-    p1.color = rgb2hex(0, 0, 255)
+    p1.color = rgb2hex(255, 192, 225)
 
     // Camera point
     const p2 = point(Math.cos(CR2) * BASE_CAMERA_DISTANCE, 0, Math.sin(CR2) * BASE_CAMERA_DISTANCE)
+    p2.color = rgb2hex(255, 62, 99)
 
     // Ray
     const ray = p1 & p2
+    ray.color = rgb2hex(255, 192, 225)
 
     // Add to array
     objs.push(p1)
@@ -131,31 +175,14 @@ const objs = Algebra(3, 0, 1, () => {
     // objs[4].selected = objs[4].selected ? false : true
 
     let i = 0
-    const idInterval = setInterval(() => {
-      if (i === 100) {
-        clearInterval(idInterval)
-      } else {
-        const v = 100 / i
-        p1.color = rgb2hex(
-          255 - (255 * v),
-          255 - (24 * v),
-          255 - (64 * v),
-        )
-        p2.color = rgb2hex(
-          255 - (0 * v),
-          255 - (64 * v),
-          255 - (24 * v),
-        )
-        ray.color = rgb2hex(
-          255 - (0 * v),
-          255 - (0 * v),
-          255 - (0 * v),
-        )
-        console.log(objs)
-      }
-      ++i
-    }, 100)
-
+    setTimeout(() => {
+      const idx1 = objs.findIndex((d) => d == p1)
+      objs.splice(idx1, 1)
+      const idx2 = objs.findIndex((d) => d == p2)
+      objs.splice(idx2, 1)
+      const idx3 = objs.findIndex((d) => d == ray)
+      objs.splice(idx3, 1)
+    }, 10000)
 
     return false
   })
