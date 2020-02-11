@@ -1,6 +1,9 @@
 // Create a Clifford Algebra with 3,0,1 metric.
 const objs = Algebra(3, 0, 1, () => {
 
+
+  let middleClickPressed = false
+
   // scale
   const scale = 0.1
 
@@ -39,6 +42,7 @@ const objs = Algebra(3, 0, 1, () => {
 
   // Camera
   const camera = 0e0
+  let cameraRotationX = 0
 
 
   // Render and rotate them using the webGL2 previewer.
@@ -47,11 +51,12 @@ const objs = Algebra(3, 0, 1, () => {
 
     // Get the time
     const time = performance.now() / 4000;
+    // cameraRotationX = time
     const res = []
 
     // Transform all objects
     objs.forEach((obj, i) => {
-      camera.set(Math.cos(time) + Math.sin(time) * 1e13);
+      camera.set(Math.cos(cameraRotationX) + Math.sin(cameraRotationX) * 1e13);
       const rotation = obj.rot || { x: 0, y: 0, z: 0 }
       const rotX = rot(rotation.x, 1e23)
       const rotY = rot(rotation.y, 1e12)
@@ -96,6 +101,15 @@ const objs = Algebra(3, 0, 1, () => {
     const time = performance.now() / 4000;
     console.log('time is ', time)
 
+  })
+
+  let lastX = -1
+  document.body.addEventListener('mousemove', (e) => {
+    if (e.shiftKey) {
+      const delta = -(lastX - e.x)
+      lastX = e.x
+      cameraRotationX += degree2radian(delta)
+    }
   })
 
   return objs
