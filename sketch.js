@@ -49,6 +49,7 @@ const objs = Algebra(3, 0, 1, () => {
   // scale
   const scale = 0.1
   const BASE_CAMERA_DISTANCE = 4.5
+  const BASE_CAMERA_ROTATION_SPEED = 0.3
   let cameraDistance = 1
 
   // Degree
@@ -152,7 +153,9 @@ const objs = Algebra(3, 0, 1, () => {
     const ratioY = window.innerHeight / window.innerWidth
     x = center(x, window.innerWidth) * -4
     y = center(y, window.innerHeight) * ratioY * 4
-    const CR2 = cameraRotation * 1.9
+    const CR2 = cameraRotation * 2
+    console.log('Camera', camera);
+
 
     // Plane point
     const p1 = point(-Math.sin(CR2) * x, y, Math.cos(CR2) * x);
@@ -196,7 +199,7 @@ const objs = Algebra(3, 0, 1, () => {
       }
       const delta = -(lastX - e.x)
       lastX = e.x
-      cameraRotation += degree2radian(delta)
+      cameraRotation += degree2radian(delta * BASE_CAMERA_ROTATION_SPEED)
     } else {
       lastX = -1
     }
