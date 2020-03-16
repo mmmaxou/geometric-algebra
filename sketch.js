@@ -236,7 +236,7 @@ const objs = Algebra(3, 0, 1, () => {
       const intersected = d <= scale
       if (intersected) obj.selected = Boolean(1 - obj.selected)
       return intersected
-    })h
+    })
     console.log('objsIntersected', objsIntersected);
 
     if (intersected) {
