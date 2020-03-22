@@ -39,16 +39,25 @@ function hslToRgb(h, s, l) {
   return [r * 255, g * 255, b * 255];
 }
 
+
 // Create a Clifford Algebra with 3,0,1 metric.
 const objs = Algebra(3, 0, 1, () => {
-
-  // scale
+  
   const scale = 0.1
+  const AMPLITUDE = 4
+  const HALF_AMPLITUDE = AMPLITUDE * 0.5
   const BASE_CAMERA_DISTANCE = 4.5
   const BASE_CAMERA_ROTATION_SPEED = 0.3
   let hideObjs = false
   let hideTemps = true
+  let deltaNoise = 0
   let cameraDistance = 1
+  
+    // Generator
+    const generator = new Simple1DNoise()
+    generator.setScale(0.1)
+    generator.setAmplitude(AMPLITUDE)
+    console.log(generator);
 
   // Degree
   const degree2radian = (deg) => (deg * (3.15149) / 360)
@@ -107,16 +116,28 @@ const objs = Algebra(3, 0, 1, () => {
     }, timeout)
   }
 
-  const objs = [
+  let objs = [
     sphere(1),
     sphere(1),
     sphere(1),
-  ].map((x, i) => ({
-    data: x,
-    selected: false,
-    translate: { x: -(i / 3 | 0), y: 0, z: -(i % 3) + 1 },
-    name: ''
-  }));
+  ].map((x, i) => {
+    const obj = {
+      data: x,
+      selected: false,
+      translate: { x: -(i / 3 | 0), y: 2, z: -(i % 3) + 1 },
+      scale: 1,
+      offset: { x: deltaNoise, z: deltaNoise + 10 },
+      verticalSpeed: 0.01,
+      name: '',
+    }
+    deltaNoise += 20
+    setInterval(() => {
+      obj.translate.x = (generator.getVal(obj.offset.x += 0.1)) - HALF_AMPLITUDE
+      obj.translate.z = (generator.getVal(obj.offset.z += 0.1)) - HALF_AMPLITUDE
+      obj.translate.y -= (obj.verticalSpeed)
+    }, 25)
+    return obj
+  });
 
   // Camera
   const camera = 0e0
@@ -142,6 +163,13 @@ const objs = Algebra(3, 0, 1, () => {
       const translate = (1 + 1e0 + Y_Move + X_Move + Z_Move)
       // const translate = (1 + 1e0 - 3e01 - ((i % 3) - 1) * 1.5e03 - ((i / 3 | 0) - 1.5) * 1.5e02)
       obj.transform = translate
+
+      if (obj.translate.y < -2) {
+        console.log('lost')
+        objs = []
+      }
+
+      // Color it
       let color
       if (obj.color) {
         color = obj.color
@@ -178,7 +206,7 @@ const objs = Algebra(3, 0, 1, () => {
     // Return with a color
     // return [0xFF0088, ...objs]
     return res
-  }, { gl: 1, animate: true, camera, grid: true }));
+  }, { gl: true, animate: true, camera, grid: true }));
 
 
   const center = (n, size) => (n - (size * 0.5)) / size
@@ -222,9 +250,6 @@ const objs = Algebra(3, 0, 1, () => {
     ray.name = 'Ray'
     addToTemps(ray)
 
-
-    // Test for intersection
-    // objs[4].selected = objs[4].selected ? false : t
     // Test for intersection
     console.log('objs', objs)
 
@@ -238,8 +263,9 @@ const objs = Algebra(3, 0, 1, () => {
       return A_distance > B_distance
     })
 
+    let distanceToCenter = 0
     // Find the first intersection
-    const objIntersected = objs.find(obj => {
+    const objIntersectedIndex = objs.findIndex(obj => {
 
       // Find center of the sphere
       const center = point(-obj.translate.x, -obj.translate.y, obj.translate.z);
@@ -265,8 +291,12 @@ const objs = Algebra(3, 0, 1, () => {
 
       // Find the distance
       const distance = dist_pp(center, pointInPlane)
-
-      return distance < scale ? true : false
+      if (distance < scale) {
+        distanceToCenter = distance
+        return true
+      } else {
+        return false
+      }
 
       /*
       // OLD NOT WORKING VERSION
@@ -281,30 +311,16 @@ const objs = Algebra(3, 0, 1, () => {
       */
       
     })
-    console.log('objsIntersected', objIntersected);
-
-    if (objIntersected) {
-      objIntersected.selected = Boolean(1-objIntersected.selected)
-    }
     
 
-
-/*
-    if (intersected) {
-      const newSphere = sphere(1)
-      const objSphere = {
-        data: newSphere,
-        selected: false,
-        translate: {
-          x: -translateP1.x,
-          y: -translateP1.y,
-          z: translateP1.z,
-        },
-        name: ''
-      }
-      objs.push(objSphere)
+    if (objIntersectedIndex != -1) {
+      const objIntersected = objs[objIntersectedIndex]
+      const i = objIntersectedIndex
+      objIntersected.selected = Boolean(1 - objIntersected.selected)
+      setTimeout(() => {
+        objs = objs.slice(0, i).concat(objs.slice(i + 1))
+      }, 200)
     }
-*/
     return false
   })
 
