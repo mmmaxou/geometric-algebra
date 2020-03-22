@@ -44,20 +44,31 @@ function hslToRgb(h, s, l) {
 const objs = Algebra(3, 0, 1, () => {
   
   const scale = 0.1
-  const AMPLITUDE = 4
+  const AMPLITUDE = 2
   const HALF_AMPLITUDE = AMPLITUDE * 0.5
   const BASE_CAMERA_DISTANCE = 4.5
   const BASE_CAMERA_ROTATION_SPEED = 0.3
+  const BASE_TIME_INTERVAL = 1500
+
   let hideObjs = false
-  let hideTemps = true
+  let hideTemps = false
+  let gamePaused = false
   let deltaNoise = 0
   let cameraDistance = 1
+  let timeInterval = BASE_TIME_INTERVAL
+  let objs = []
+  let permanent = []
+  let temps = []
+
+  // Camera
+  const camera = 0e0
+  let cameraRotation = 0
   
-    // Generator
-    const generator = new Simple1DNoise()
-    generator.setScale(0.1)
-    generator.setAmplitude(AMPLITUDE)
-    console.log(generator);
+  // Generator
+  const generator = new Simple1DNoise()
+  generator.setScale(0.1)
+  generator.setAmplitude(AMPLITUDE)
+  console.log(generator);
 
   // Degree
   const degree2radian = (deg) => (deg * (3.15149) / 360)
@@ -67,9 +78,10 @@ const objs = Algebra(3, 0, 1, () => {
   const gMult = 16 * 16
   const rgb2hex = (r = 0, g = 0, b = 0) => r * rMult + g * gMult + b
 
-  // rotation helper and Lathe function.
   const point = (x, y, z) => 1e123 - x * 1e012 + y * 1e013 + z * 1e023
   const line = (px, py, pz, dx, dy, dz) => px * 1e01 + py & 1e02 + pz * 1e03 + dx * 1e12 + dy * 1e13 + dz * 1e23
+
+  // rotation helper and Lathe function.
   const rot = (a, P) => Math.cos(a) + Math.sin(a) * P.Normalized
   const lathe = (X, n, P, m) => [...Array(n + 1)].map((x, i) => rot(i / n * Math.PI * (m || 1), P) >>> X)
 
@@ -104,10 +116,27 @@ const objs = Algebra(3, 0, 1, () => {
   const cube = (r = 1) => cylinder(r * scale, r * scale * 1.33, 4)
   const sphere = (r = 1, x = 32, y = 16) => wrap(lathe(lathe(!(1e0 + r * scale * 1e1), y, 1e13, .5), x, 1e23))
 
+  const makeSphere = () => {
+    const obj = {
+      data: sphere(Math.random() + 1),
+      selected: false,
+      translate: { x: generator.getVal(deltaNoise), y: 2, z: generator.getVal(deltaNoise + 10) },
+      scale: 1,
+      offset: { x: deltaNoise, z: deltaNoise + 10 },
+      verticalSpeed: 0.01,
+      name: '',
+    }
+    deltaNoise += 20
+    setInterval(() => {
+      obj.translate.x = (generator.getVal(obj.offset.x += 0.1)) - HALF_AMPLITUDE
+      obj.translate.z = (generator.getVal(obj.offset.z += 0.1)) - HALF_AMPLITUDE
+      obj.translate.y -= (obj.verticalSpeed)
+    }, 25)
+    return obj
+
+  }
 
   // A selection of these objects.
-  const temps = []
-
   const addToTemps = (obj, timeout = 10000) => {
     temps.push(obj)
     setTimeout(() => {
@@ -116,7 +145,8 @@ const objs = Algebra(3, 0, 1, () => {
     }, timeout)
   }
 
-  let objs = [
+  // Default
+  objs = [
     sphere(1),
     sphere(1),
     sphere(1),
@@ -139,12 +169,57 @@ const objs = Algebra(3, 0, 1, () => {
     return obj
   });
 
-  // Camera
-  const camera = 0e0
-  let cameraRotation = 0
+  // Permanents
+  const defaultObj = () => {
+    const array = []
+    const p1 = point(1, 2, 0)
+    const p2 = point(1, -2, 0)
+    const ray = p2 & p1
+    const p3 = point(1, -2, 1)
+    const p4 = point(1, -2, 1)
+    const ray12 = p4 & p3
+    const plane1 = ray << p1
+    const plane2 = ray << p2
+    array.push(point(1, 2, 1)) // p0
+    array.push(point(1, -2, 1)) // p1
+    array.push(point(-1, 2, -1)) // p2
+    array.push(point(-1, -2, -1)) // p3
+    array.push(point(-1, 2, 1)) // p4
+    array.push(point(-1, -2, 1)) // p5
+    array.push(point(1, 2, -1)) // p6
+    array.push(point(1, -2, -1))  // p7
+    array.push(array[1] & array[0]) // ray0 : p1 & p0
+    array.push(array[3] & array[2]) // ray1 : p3 & p2
+    array.push(array[5] & array[4]) // ray2 : p5 & p4
+    array.push(array[7] & array[6]) // ray3 : p7 & p6
+    array.push(array[8] << array[0]) // plane1 : ray0 << p0 
+    array.push(array[8] << array[1]) // plane1 : ray0 << p1
+    permanent = array
+  }
+  defaultObj()
+
+
+  // GAME LOOP
+  const oneLoop = () => {
+    if (timeInterval > 750) {
+      timeInterval -= 10
+    }
+    objs.push(makeSphere())
+    setTimeout(oneLoop, timeInterval)
+  }
+  setTimeout(oneLoop, timeInterval)
+
+  // Game over
+  const gameOver = () => {
+    console.log('lost')
+    deltaNoise = 0
+    timeInterval = BASE_TIME_INTERVAL
+    objs = []
+  }
 
   // Render and rotate them using the webGL2 previewer.
   const displayer = document.getElementById("displayer")
+  console.log(displayer)
   displayer.appendChild(this.graph(() => {
 
     // Move camera
@@ -153,6 +228,12 @@ const objs = Algebra(3, 0, 1, () => {
     // Get the time
     const time = performance.now() / 4000;
     const res = []
+
+    
+    permanent.forEach((obj, i) => {
+      // res.push(0x11FF88)
+      res.push(obj)
+    });
 
     // Transform all objects
     objs.forEach((obj, i) => {
@@ -165,8 +246,7 @@ const objs = Algebra(3, 0, 1, () => {
       obj.transform = translate
 
       if (obj.translate.y < -2) {
-        console.log('lost')
-        objs = []
+        gameOver()
       }
 
       // Color it
@@ -203,6 +283,7 @@ const objs = Algebra(3, 0, 1, () => {
       res.push(obj)
     })
 
+
     // Return with a color
     // return [0xFF0088, ...objs]
     return res
@@ -219,9 +300,11 @@ const objs = Algebra(3, 0, 1, () => {
     let [x, y] = [e.x, e.y]
 
     // Map them to center
-    const ratioY = window.innerHeight / window.innerWidth
-    x = center(x, window.innerWidth) * -4
-    y = center(y, window.innerHeight) * ratioY * 4
+    const ratioY = displayer.clientHeight / displayer.clientWidth
+    // x = (center(x, (displayer.clientWidth + (displayer.offsetLeft))) * -4)
+    const xOff = (displayer.offsetLeft / displayer.clientWidth ) * -4
+    x = center(x, displayer.clientWidth) * -4 - xOff
+    y = center(y, displayer.clientHeight) * ratioY * 4
     const CR2 = cameraRotation * 2
 
     // Plane point
@@ -281,17 +364,17 @@ const objs = Algebra(3, 0, 1, () => {
       
       center.color = rgb2hex(0, 62, 99);
       rayFromCameraToCenter.color = rgb2hex(120, 250, 20);
-      plane.color = rgb2hex(20, 250, 20);
+      // plane.color = rgb2hex(20, 250, 20);
       pointInPlane.color = rgb2hex(255, 0, 0)
 
       addToTemps(center);
       addToTemps(rayFromCameraToCenter)
-      addToTemps(plane);
+      // addToTemps(plane);
       addToTemps(pointInPlane)
 
       // Find the distance
       const distance = dist_pp(center, pointInPlane)
-      if (distance < scale) {
+      if (distance < (scale*1.5)) {
         distanceToCenter = distance
         return true
       } else {
@@ -327,6 +410,7 @@ const objs = Algebra(3, 0, 1, () => {
   document.body.addEventListener('keydown', (e) => {
     if (e.key === 'h') hideObjs = true
     if (e.key === 'j') hideTemps = Boolean(1-hideTemps)
+    if (e.key === 'space') gamePaused = Boolean(1-gamePaused)
   })
 
   document.body.addEventListener('keyup', (e) => {
