@@ -47,6 +47,7 @@ const objs = Algebra(3, 0, 1, () => {
   const BASE_CAMERA_DISTANCE = 4.5
   const BASE_CAMERA_ROTATION_SPEED = 0.3
   let hideObjs = false
+  let hideTemps = true
   let cameraDistance = 1
 
   // Degree
@@ -154,6 +155,7 @@ const objs = Algebra(3, 0, 1, () => {
     });
 
     temps.forEach((obj, i) => {
+      if ( hideTemps ) return
       if (obj.translate) {        
         const X_Move = (obj.translate.x / 2) * 1e03
         const Y_Move = (obj.translate.y / 2) * 1e02
@@ -176,7 +178,7 @@ const objs = Algebra(3, 0, 1, () => {
     // Return with a color
     // return [0xFF0088, ...objs]
     return res
-  }, { gl: 1, animate: true, camera }));
+  }, { gl: 1, animate: true, camera, grid: true }));
 
 
   const center = (n, size) => (n - (size * 0.5)) / size
@@ -227,44 +229,46 @@ const objs = Algebra(3, 0, 1, () => {
     console.log('objs', objs)
 
     // Sort by distance
-    objs.sort(() => -1)
+    objs.sort((A, B) => {
+      // Find center
+      const A_center = point(-A.translate.x, -A.translate.y, A.translate.z);
+      const B_center = point(-B.translate.x, -B.translate.y, B.translate.z);
+      const A_distance = dist_pp(A_center, cameraPoint)
+      const B_distance = dist_pp(B_center, cameraPoint)
+      return A_distance > B_distance
+    })
 
     // Find the first intersection
-    // const intersected = objs.find(() => -1) 
-    // const intersected = p1
+    const objIntersected = objs.find(obj => {
 
-    const objsIntersected = objs.find(obj => {
-
-      
       // Find center of the sphere
       const center = point(-obj.translate.x, -obj.translate.y, obj.translate.z);
-      center.color = rgb2hex(0, 62, 99);
-      addToTemps(center);
-
+      
       // Ray from camera to center
       const rayFromCameraToCenter = center & cameraPoint;
-      rayFromCameraToCenter.color = rgb2hex(120, 250, 20);
-      addToTemps(rayFromCameraToCenter)
-
+      
       // Create orthogonal plane
       const plane = rayFromCameraToCenter << center;
-      plane.color = rgb2hex(20, 250, 20);
-      addToTemps(plane);
-      console.log('orthogonal plane ', plane)
-
+      
       // Ray from camera to plane
       const pointInPlane = ray ^ plane
+      
+      center.color = rgb2hex(0, 62, 99);
+      rayFromCameraToCenter.color = rgb2hex(120, 250, 20);
+      plane.color = rgb2hex(20, 250, 20);
       pointInPlane.color = rgb2hex(255, 0, 0)
+
+      addToTemps(center);
+      addToTemps(rayFromCameraToCenter)
+      addToTemps(plane);
       addToTemps(pointInPlane)
 
       // Find the distance
       const distance = dist_pp(center, pointInPlane)
-      console.log(distance)
 
-      return center
+      return distance < scale ? true : false
 
       /*
-
       // OLD NOT WORKING VERSION
       const rayToCenter = center & p1
       rayToCenter.color = rgb2hex(10, 50, 125)
@@ -277,7 +281,14 @@ const objs = Algebra(3, 0, 1, () => {
       */
       
     })
-    console.log('objsIntersected', objsIntersected);
+    console.log('objsIntersected', objIntersected);
+
+    if (objIntersected) {
+      objIntersected.selected = Boolean(1-objIntersected.selected)
+    }
+    
+
+
 /*
     if (intersected) {
       const newSphere = sphere(1)
@@ -299,6 +310,7 @@ const objs = Algebra(3, 0, 1, () => {
 
   document.body.addEventListener('keydown', (e) => {
     if (e.key === 'h') hideObjs = true
+    if (e.key === 'j') hideTemps = Boolean(1-hideTemps)
   })
 
   document.body.addEventListener('keyup', (e) => {
