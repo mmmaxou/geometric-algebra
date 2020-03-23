@@ -335,8 +335,6 @@ const objs = Algebra(3, 0, 1, () => {
       console.log('Duplicate prevented')
       return
     } 
-    console.log('click', e)
-    console.log('last', lastEvent)
     lastEvent = e
 
     // Get the x and y coordinates
