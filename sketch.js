@@ -39,6 +39,32 @@ function hslToRgb(h, s, l) {
   return [r * 255, g * 255, b * 255];
 }
 
+let lastEvent
+
+function onTouch(evt) {
+  evt.preventDefault();
+  evt.cancelBubble = true
+  evt.stopPropagation()
+  if (evt.touches.length > 1 || (evt.type == "touchend" && evt.touches.length > 0))
+    return;
+
+  var newEvt = document.createEvent("MouseEvents");
+  var touch = event.changedTouches[0]
+  if (event.type === "touchstart") {
+    newEvt.initMouseEvent("click", true, true, event.originalTarget.ownerDocument.defaultView, 0, touch.screenX, touch.screenY, touch.clientX, touch.clientY,evt.ctrlKey, evt.altKey, evt.shirtKey, evt.metaKey, 0, null);
+    event.originalTarget.dispatchEvent(newEvt);
+  }
+}
+
+const $score = document.getElementById('score')
+const changeScore = (newScore) => {
+  $score.innerHTML = `Score : ${newScore}`
+}
+
+const $speed = document.getElementById('speed')
+const changeSpeed = (newSpeed) => {
+  $speed.innerHTML = `${newSpeed} ms`
+}
 
 // Create a Clifford Algebra with 3,0,1 metric.
 const objs = Algebra(3, 0, 1, () => {
@@ -51,11 +77,14 @@ const objs = Algebra(3, 0, 1, () => {
   const BASE_TIME_INTERVAL = 1500
 
   let hideObjs = false
-  let hideTemps = false
+  let hideTemps = true
   let gamePaused = false
   let deltaNoise = 0
   let cameraDistance = 1
+  let score = 0
+  changeScore(score)
   let timeInterval = BASE_TIME_INTERVAL
+  changeSpeed(timeInterval)
   let objs = []
   let permanent = []
   let temps = []
@@ -178,8 +207,6 @@ const objs = Algebra(3, 0, 1, () => {
     const p3 = point(1, -2, 1)
     const p4 = point(1, -2, 1)
     const ray12 = p4 & p3
-    const plane1 = ray << p1
-    const plane2 = ray << p2
     array.push(point(1, 2, 1)) // p0
     array.push(point(1, -2, 1)) // p1
     array.push(point(-1, 2, -1)) // p2
@@ -203,6 +230,7 @@ const objs = Algebra(3, 0, 1, () => {
   const oneLoop = () => {
     if (timeInterval > 750) {
       timeInterval -= 10
+      changeSpeed(timeInterval)
     }
     objs.push(makeSphere())
     setTimeout(oneLoop, timeInterval)
@@ -213,7 +241,10 @@ const objs = Algebra(3, 0, 1, () => {
   const gameOver = () => {
     console.log('lost')
     deltaNoise = 0
+    score = 0
+    changeScore(score)
     timeInterval = BASE_TIME_INTERVAL
+    changeSpeed(timeInterval)
     objs = []
   }
 
@@ -292,9 +323,21 @@ const objs = Algebra(3, 0, 1, () => {
 
   const center = (n, size) => (n - (size * 0.5)) / size
 
+  displayer.addEventListener('touchstart', onTouch)
+  displayer.addEventListener('touchend', onTouch)
+  displayer.addEventListener('touchmove', onTouch)
+
   // Add a on click button
   displayer.addEventListener('click', (e) => {
     e.preventDefault()
+    if (lastEvent && e.x == lastEvent.x && e.y == lastEvent.y) {
+      lastEvent = undefined
+      console.log('Duplicate prevented')
+      return
+    } 
+    console.log('click', e)
+    console.log('last', lastEvent)
+    lastEvent = e
 
     // Get the x and y coordinates
     let [x, y] = [e.x, e.y]
@@ -346,7 +389,6 @@ const objs = Algebra(3, 0, 1, () => {
       return A_distance > B_distance
     })
 
-    let distanceToCenter = 0
     // Find the first intersection
     const objIntersectedIndex = objs.findIndex(obj => {
 
@@ -364,22 +406,17 @@ const objs = Algebra(3, 0, 1, () => {
       
       center.color = rgb2hex(0, 62, 99);
       rayFromCameraToCenter.color = rgb2hex(120, 250, 20);
-      // plane.color = rgb2hex(20, 250, 20);
+      plane.color = rgb2hex(20, 250, 20);
       pointInPlane.color = rgb2hex(255, 0, 0)
 
       addToTemps(center);
       addToTemps(rayFromCameraToCenter)
-      // addToTemps(plane);
+      addToTemps(plane);
       addToTemps(pointInPlane)
 
       // Find the distance
       const distance = dist_pp(center, pointInPlane)
-      if (distance < (scale*1.5)) {
-        distanceToCenter = distance
-        return true
-      } else {
-        return false
-      }
+      return distance < (scale*1.5)
 
       /*
       // OLD NOT WORKING VERSION
@@ -395,10 +432,10 @@ const objs = Algebra(3, 0, 1, () => {
       
     })
     
-
     if (objIntersectedIndex != -1) {
       const objIntersected = objs[objIntersectedIndex]
       const i = objIntersectedIndex
+      changeScore(score += 1)
       objIntersected.selected = Boolean(1 - objIntersected.selected)
       setTimeout(() => {
         objs = objs.slice(0, i).concat(objs.slice(i + 1))
